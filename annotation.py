@@ -7,9 +7,30 @@ import random
 
 
 def compare(image1: str, image2: str):
-    # TODO: implement
-    win = image1
-    lose = image2
+    win = None
+    lose = None
+
+    def on_press(event):
+        nonlocal win, lose
+        print(event.key)
+        if event.key == "left":
+            win = image1
+            lose = image2
+            plt.close()
+        elif event.key == "right":
+            win = image2
+            lose = image1
+            plt.close()
+
+    while win is None or lose is None:
+        fig = plt.figure()
+        fig.canvas.mpl_connect('key_press_event', on_press)
+
+        plt.subplot(1, 2, 1)
+        plt.imshow(plt.imread(image1))
+        plt.subplot(1, 2, 2)
+        plt.imshow(plt.imread(image2))
+        plt.show()
 
     return win, lose
 
@@ -26,17 +47,15 @@ def update_rating(ratings: dict, winner: str, loser: str):
     r1 = ratings[winner]
     r2 = ratings[loser]
 
-    e1 = 1 / (1 + 10 ** ((r2 - r1) / 400))
-    e2 = 1 / (1 + 10 ** ((r1 - r2) / 400))
+    w_21 = 1 / (1 + 10 ** ((r1 - r2) / 400))
 
-    ratings[winner] = r1 + k * (1 - e1)
-    ratings[loser] = r2 + k * (0 - e2)
+    ratings[winner] = r1 + k * w_21
+    ratings[loser] = r2 - k * w_21
 
 
 def annotate(
         image_directory: Path,
         result_json_path: Path,
-        mode: str = 'round robin',
         n_rounds: int = 100,
         show_result: bool = False):
     """
@@ -54,28 +73,22 @@ def annotate(
     image_directory = Path(image_directory)
     result_json_path = Path(result_json_path)
 
+    # load files
     files = glob.glob(str(image_directory / '*.jpg')) + \
         glob.glob(str(image_directory / '*.png'))
     ratings = json.load(open(result_json_path, 'r'))\
         if result_json_path.exists() else {}
 
-    if mode == 'round robin':
-        for i in range(len(files)):
-            for j in range(i + 1, len(files)):
-                win, lose = compare(files[i], files[j])
-                update_rating(ratings, win, lose)
-    elif mode == 'random':
-        for _ in range(n_rounds):
-            file1 = random.choice(files)
+    # evaluate
+    for _ in range(n_rounds):
+        file1 = random.choice(files)
+        file2 = random.choice(files)
+        while file1 == file2:
             file2 = random.choice(files)
-            while file1 != file2:
-                file2 = random.choice(files)
 
-            update_rating(ratings, win, lose)
-    else:
-        raise ValueError(f'Unknown mode: {mode}')
-
-    json.dump(ratings, open(result_json_path, 'w'))
+        win, lose = compare(file1, file2)
+        update_rating(ratings, win, lose)
+        json.dump(ratings, open(result_json_path, 'w'))
 
     if show_result:
         # sort by rating
