@@ -15,8 +15,22 @@ def compare(image1: str, image2: str):
 
 
 def update_rating(ratings: dict, winner: str, loser: str):
-    # TODO: implement
-    pass
+    default_rating = 1500
+    k = 32
+
+    if winner not in ratings:
+        ratings[winner] = default_rating
+    if loser not in ratings:
+        ratings[loser] = default_rating
+
+    r1 = ratings[winner]
+    r2 = ratings[loser]
+
+    e1 = 1 / (1 + 10 ** ((r2 - r1) / 400))
+    e2 = 1 / (1 + 10 ** ((r1 - r2) / 400))
+
+    ratings[winner] = r1 + k * (1 - e1)
+    ratings[loser] = r2 + k * (0 - e2)
 
 
 def annotate(
