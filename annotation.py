@@ -5,6 +5,7 @@ import glob
 import json
 import random
 from typing import List
+from copy import deepcopy
 
 
 def compare(image1: str, image2: str):
@@ -85,6 +86,8 @@ def calculate_n_comparisons(compare_result: dict, files: List[str]):
 
 
 def select_file(files: List[str], n_comparisons: dict, compare_results: dict):
+    files = deepcopy(files)
+    random.shuffle(files)
     candidate = sorted(files, key=lambda x: n_comparisons[x])
 
     for i in range(len(candidate)):
@@ -99,8 +102,8 @@ def select_file(files: List[str], n_comparisons: dict, compare_results: dict):
 
 def annotate(
         image_directory: Path,
-        result_json_path: Path,
-        rate_json_path: Path,
+        comparison_result_path: Path,
+        rating_json_path: Path,
         n_rounds: int = 100,
         show_result: bool = False):
     """
@@ -108,22 +111,24 @@ def annotate(
 
     Args:
         image_directory: Path to directory containing images.
-        result_json_path: Json file path to save results. If the file exists,
+        comparison_result_path: Json file path to save comparison results. If the file exists,
             the results will be appended.
-        rate_json_path: Json file path to save rating.
+        rating_json_path: Json file path to save rating.
         n_rounds: Number of rounds to annotate. 
         show_result: If True, show the result of annotation.
     """
 
     image_directory = Path(image_directory)
-    result_json_path = Path(result_json_path)
+    comparison_result_path = Path(comparison_result_path)
 
     # load files
     files = glob.glob(str(image_directory / '*.jpg')) + \
         glob.glob(str(image_directory / '*.png'))
-    # NOTE: compare_results[(file1, file2)] is True if file1 is winner
-    compare_results = json.load(open(result_json_path, 'r'))\
-        if result_json_path.exists() else {}
+    # NOTE: list of [file1, file2, file1 == winner]
+    compare_results_raw = json.load(open(comparison_result_path, 'r'))["data"]\
+        if comparison_result_path.exists() else []
+    compare_results = {(f1, f2): result for f1, f2,
+                       result in compare_results_raw}
 
     # compare_count[file] is number of comparison of specified file
     n_comparisons = calculate_n_comparisons(compare_results, files)
@@ -134,14 +139,19 @@ def annotate(
         n_comparisons[file1] += 1
         n_comparisons[file2] += 1
 
+        print("compare", file1, file2)
         win, _lose = compare(file1, file2)
         compare_results[(file1, file2)] = win == file1
-        json.dump(compare_results, open(result_json_path, 'w'))
+
+        # save compare results
+        compare_results_raw = {"data": [[f1, f2, result]
+                               for (f1, f2), result in compare_results.items()]}
+        json.dump(compare_results_raw, open(comparison_result_path, 'w'))
 
     # calculate and save Elo rating
     # NOTE: rating[file] is elo rating
     rating = calculate_rating(compare_results, files)
-    json.dump(rating, open(rate_json_path, 'w'))
+    json.dump(rating, open(rating_json_path, 'w'))
 
     if show_result:
         # sort by rating
