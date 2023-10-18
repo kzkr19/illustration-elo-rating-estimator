@@ -71,17 +71,30 @@ def calculate_rating(compare_result: dict, files: List[str]):
     return rating
 
 
-def calculate_n_comparison(compare_result: dict, files: List[str]):
-    compare_count = {}
+def calculate_n_comparisons(compare_result: dict, files: List[str]):
+    n_comparisons = {}
 
     for f in files:
-        compare_count[f] = 0
+        n_comparisons[f] = 0
 
     for f1, f2 in compare_result.keys():
-        compare_count[f1] += 1
-        compare_count[f2] += 1
+        n_comparisons[f1] += 1
+        n_comparisons[f2] += 1
 
-    return compare_count
+    return n_comparisons
+
+
+def select_file(files: List[str], n_comparisons: dict, compare_results: dict):
+    candidate = sorted(files, key=lambda x: n_comparisons[x])
+
+    for i in range(len(candidate)):
+        for j in range(i + 1, len(candidate)):
+            file1 = min(candidate[i], candidate[j])
+            file2 = max(candidate[i], candidate[j])
+            if (file1, file2) not in compare_results:
+                return file1, file2
+
+    raise ValueError('All pairs are compared.')
 
 
 def annotate(
@@ -113,18 +126,16 @@ def annotate(
         if result_json_path.exists() else {}
 
     # compare_count[file] is number of comparison of specified file
-    compare_count = calculate_n_comparison(compare_results, files)
+    n_comparisons = calculate_n_comparisons(compare_results, files)
 
     # evaluate
     for _ in range(n_rounds):
-        # TODO: select file which has less comparison count
-        file1 = random.choice(files)
-        file2 = random.choice(files)
-        while file1 == file2:
-            file2 = random.choice(files)
+        file1, file2 = select_file(files, n_comparisons, compare_results)
+        n_comparisons[file1] += 1
+        n_comparisons[file2] += 1
 
-        win, lose = compare(file1, file2)
-        update_rating(compare_results, win, lose)
+        win, _lose = compare(file1, file2)
+        compare_results[(file1, file2)] = win == file1
         json.dump(compare_results, open(result_json_path, 'w'))
 
     # calculate and save Elo rating
