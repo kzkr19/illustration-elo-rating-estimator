@@ -56,15 +56,31 @@ def update_rating(ratings: dict, winner: str, loser: str):
     ratings[loser] = r2 - k * w_21
 
 
-def calculate_rating(compare_result: dict):
-    # TODO: implement
+def calculate_rating(compare_result: dict, files: List[str]):
     rating = {}
+
+    for f in files:
+        rating[f] = 1500
+
+    for (f1, f2), result in compare_result.items():
+        if result:
+            update_rating(rating, f1, f2)
+        else:
+            update_rating(rating, f2, f1)
+
     return rating
 
 
 def calculate_n_comparison(compare_result: dict, files: List[str]):
-    # TODO: implement
     compare_count = {}
+
+    for f in files:
+        compare_count[f] = 0
+
+    for f1, f2 in compare_result.keys():
+        compare_count[f1] += 1
+        compare_count[f2] += 1
+
     return compare_count
 
 
@@ -92,7 +108,7 @@ def annotate(
     # load files
     files = glob.glob(str(image_directory / '*.jpg')) + \
         glob.glob(str(image_directory / '*.png'))
-    # compare_results[(file1, file2)] s True if file1 is winner
+    # NOTE: compare_results[(file1, file2)] is True if file1 is winner
     compare_results = json.load(open(result_json_path, 'r'))\
         if result_json_path.exists() else {}
 
@@ -112,7 +128,8 @@ def annotate(
         json.dump(compare_results, open(result_json_path, 'w'))
 
     # calculate and save Elo rating
-    rating = calculate_rating(compare_results)  # rating[file] is elo rating
+    # NOTE: rating[file] is elo rating
+    rating = calculate_rating(compare_results, files)
     json.dump(rating, open(rate_json_path, 'w'))
 
     if show_result:
