@@ -1,5 +1,6 @@
 import glob
 import torch
+from torch.utils.data import random_split
 import clip
 import json
 from PIL import Image
@@ -34,7 +35,8 @@ def preprocess_images(models, image_paths: List[str]):
 
 def preprocess_dataset(models, image_paths: List[str], rating_json_path: str):
     # TODO: implement
-    return None, None, None, None
+    rating = json.load(open(rating_json_path, 'r'))["data"]
+    return None, None
 
 
 def train_core(x_train, y_train, x_test, y_test):
@@ -55,21 +57,24 @@ def train(
         preprcessed_dataset_path: str,
         trained_model_path: str):
 
-    image_paths = glob.glob(str(image_directory / '*.jpg')) + \
-        glob.glob(str(image_directory / '*.png'))
-    rating = json.load(open(rating_json_path, 'r'))["data"]
-
     if Path(preprcessed_dataset_path).exist():
-        x_train, y_train, x_test, y_test = \
-            pickle.load(preprcessed_dataset_path)
+        x_train, y_train = pickle.load(preprcessed_dataset_path)
     else:
-        models = load_clip_model()
-        x_train, y_train, x_test, y_test = \
-            preprocess_dataset(models, image_paths, rating_json_path)
-        pickle.dump((x_train, y_train, x_test, y_test),
-                    preprcessed_dataset_path)
+        # preprocess
+        image_paths = glob.glob(str(image_directory / '*.jpg')) + \
+            glob.glob(str(image_directory / '*.png'))
 
+        models = load_clip_model()
+        x_train, y_train = preprocess_dataset(
+            models, image_paths, rating_json_path)
+        pickle.dump((x_train, y_train), preprcessed_dataset_path)
+
+    # training
+    x_train, y_train, x_test, y_test = random_split(
+        x_train, y_train, [0.8, 0.2])
     trained_model = train_core(x_train, y_train, x_test, y_test)
+
+    # save trained model
     torch.save(trained_model, trained_model_path)
 
 
