@@ -94,8 +94,7 @@ def train(
     else:
         # preprocess
         image_directory = Path(image_directory)
-        image_paths = glob.glob(str(image_directory / '*.jpg')) + \
-            glob.glob(str(image_directory / '*.png'))
+        image_paths = get_all_image_paths(image_directory)
 
         print("loading clip model...")
         models = load_clip_model()
@@ -113,7 +112,7 @@ def train(
     torch.save(trained_model, trained_model_path)
 
 
-def estimate(model_path: str, image_folder: str):
+def estimate(model_path: str, image_directory: str):
     # load model
     device = "cuda" if torch.cuda.is_available() else "cpu"
     trained_model = torch.load(model_path, map_location=device)
@@ -121,7 +120,7 @@ def estimate(model_path: str, image_folder: str):
     _, clip_model, preprocess = load_clip_model()
 
     result = {}
-    image_paths = get_all_image_paths(image_folder)
+    image_paths = get_all_image_paths(image_directory)
 
     for image_path in image_paths:
         # load image

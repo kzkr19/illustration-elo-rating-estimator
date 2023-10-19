@@ -7,6 +7,7 @@ import random
 import trueskill
 from typing import List
 from copy import deepcopy
+from util import get_all_image_paths
 import enum
 from typing import Tuple
 
@@ -171,8 +172,7 @@ def annotate(
     comparison_result_path = Path(comparison_result_path)
 
     # load files
-    files = glob.glob(str(image_directory / '*.jpg')) + \
-        glob.glob(str(image_directory / '*.png'))
+    files = get_all_image_paths(image_directory)
     # NOTE: list of [file1, file2, file1 == winner]
     compare_results_raw = json.load(open(comparison_result_path, 'r'))["data"]\
         if comparison_result_path.exists() else []
