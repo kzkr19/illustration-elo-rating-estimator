@@ -161,6 +161,7 @@ def annotate(
 
 
 def main():
+    # TODO: add TrueSkill rating mode
     fire.Fire(annotate)
 
 
