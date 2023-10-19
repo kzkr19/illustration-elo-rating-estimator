@@ -3,7 +3,8 @@ Prediction Model and Annotation Tools for Estimating Elo Rationg of Illustration
 
 # How to Run
 ```bash
-pip install fire matplotlib torch torchvision torchaudio
+pip install trueskill fire matplotlib
+pip install torch torchvision torchaudio
 pip install ftfy regex tqdm
 pip install git+https://github.com/openai/CLIP.git
 
