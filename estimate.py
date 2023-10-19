@@ -1,6 +1,7 @@
 import glob
 import torch
-from torch.utils.data import random_split
+from torch.utils.data import random_split, TensorDataset, DataLoader
+from torchvision.ops import MLP
 import clip
 import json
 from PIL import Image
@@ -45,13 +46,35 @@ def preprocess_dataset(models, image_paths: List[str], rating_json_path: str):
 
 
 def train_core(x_train, y_train, x_test, y_test):
-    from torchvision.ops import MLP
-
     # NOTE: output layer is Linear
     # https://pytorch.org/vision/main/_modules/torchvision/ops/misc.html#MLP
-    target_model = MLP(in_channels=512, hidden_channels=[256, 1])
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    target_model = MLP(in_channels=512, hidden_channels=[256, 1]).to(device)
 
-    # TODO: implement
+    optimizer = torch.optim.Adam(target_model.parameters(), lr=1e-3)
+    loss_fn = torch.nn.MSELoss()
+
+    train_dataset = TensorDataset(
+        torch.tensor(x_train), torch.tensor(y_train))
+
+    train_loader = DataLoader(
+        train_dataset, batch_size=32, shuffle=True)
+
+    test_dataset = TensorDataset(
+        torch.tensor(x_test), torch.tensor(y_test))
+
+    for epoch in range(100):
+        for x, y in train_loader:
+            optimizer.zero_grad()
+            y_pred = target_model(x)
+            loss = loss_fn(y_pred, y)
+            loss.backward()
+            optimizer.step()
+
+        with torch.no_grad():
+            y_pred = target_model(test_dataset[:][0])
+            loss = loss_fn(y_pred, test_dataset[:][1])
+            print(f'epoch: {epoch}, loss: {loss}')
 
     return target_model
 
