@@ -9,6 +9,7 @@ from typing import List
 from pathlib import Path
 import numpy as np
 import pickle
+from util import get_all_image_paths
 
 
 def load_clip_model():
@@ -37,15 +38,16 @@ def preprocess_images(models, image_paths: List[str]):
 def preprocess_dataset(models, image_paths: List[str], rating_json_path: str):
     x_train = preprocess_images(models, image_paths)
 
-    rating = json.load(open(rating_json_path, 'r'))["data"]
+    rating = json.load(open(rating_json_path, 'r'))
     y_train = np.zeros(len(image_paths))
+
     for i, file in enumerate(image_paths):
         y_train[i] = rating[file]
 
     return x_train, y_train
 
 
-def train_core(x_train, y_train, x_test, y_test):
+def train_core(x_train, y_train):
     # NOTE: output layer is Linear
     # https://pytorch.org/vision/main/_modules/torchvision/ops/misc.html#MLP
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -54,14 +56,15 @@ def train_core(x_train, y_train, x_test, y_test):
     optimizer = torch.optim.Adam(target_model.parameters(), lr=1e-3)
     loss_fn = torch.nn.MSELoss()
 
-    train_dataset = TensorDataset(
-        torch.tensor(x_train), torch.tensor(y_train))
+    # split train and test
+    dataset = TensorDataset(torch.tensor(x_train, dtype=torch.float32),
+                            torch.tensor(y_train, dtype=torch.float32))
+    train_size = int(len(dataset) * 0.8)
+    test_size = len(dataset) - train_size
+    train_dataset, test_dataset = random_split(
+        dataset, [train_size, test_size])
 
-    train_loader = DataLoader(
-        train_dataset, batch_size=32, shuffle=True)
-
-    test_dataset = TensorDataset(
-        torch.tensor(x_test), torch.tensor(y_test))
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 
     for epoch in range(100):
         for x, y in train_loader:
@@ -85,26 +88,65 @@ def train(
         preprcessed_dataset_path: str,
         trained_model_path: str):
 
-    if Path(preprcessed_dataset_path).exist():
-        x_train, y_train = pickle.load(preprcessed_dataset_path)
+    if Path(preprcessed_dataset_path).exists():
+        with open(preprcessed_dataset_path, 'rb') as f:
+            x_train, y_train = pickle.load(f)
     else:
         # preprocess
+        image_directory = Path(image_directory)
         image_paths = glob.glob(str(image_directory / '*.jpg')) + \
             glob.glob(str(image_directory / '*.png'))
 
+        print("loading clip model...")
         models = load_clip_model()
+        print("start preprocessing...")
         x_train, y_train = preprocess_dataset(
             models, image_paths, rating_json_path)
-        pickle.dump((x_train, y_train), preprcessed_dataset_path)
+        print("finish preprocessing...")
+        with open(preprcessed_dataset_path, 'wb') as f:
+            pickle.dump((x_train, y_train), f)
 
     # training
-    x_train, y_train, x_test, y_test = random_split(
-        x_train, y_train, [0.8, 0.2])
-    trained_model = train_core(x_train, y_train, x_test, y_test)
+    trained_model = train_core(x_train, y_train)
 
     # save trained model
     torch.save(trained_model, trained_model_path)
 
 
+def estimate(model_path: str, image_folder: str):
+    # load model
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    trained_model = torch.load(model_path, map_location=device)
+    # load clip model
+    _, clip_model, preprocess = load_clip_model()
+
+    result = {}
+    image_paths = get_all_image_paths(image_folder)
+
+    for image_path in image_paths:
+        # load image
+        image = Image.open(image_path)
+
+        # preprocess
+        image = preprocess(image).unsqueeze(0).to(device)
+
+        # estimate
+        with torch.no_grad():
+            x = clip_model.encode_image(image)
+            y = trained_model(x)
+
+        result[image_path] = y.cpu().numpy()[0][0]
+        print(f"{image_path}: {result[image_path]}")
+
+    # sort by rating
+    sorted_ratings = sorted(result.items(), key=lambda x: x[1])
+    for i, (file, r) in enumerate(sorted_ratings):
+        print(f'{i + 1}: ({r}) {file} ')
+
+
 if __name__ == "__main__":
-    train()
+    import fire
+    fire.Fire({
+        "train": train,
+        "estimate": estimate
+    })
