@@ -7,42 +7,62 @@ import random
 import trueskill
 from typing import List
 from copy import deepcopy
+import enum
+
+class ComparisonResult:
+    LEFT_WIN = 0
+    RIGHT_WIN = 1
+    DRAW = 2
 
 
 def compare(image1: str, image2: str):
     """
     Compare two images with GUI, and return the winner and loser. 
     """
-    win = None
-    lose = None
+    result = None
 
     def on_press(event):
-        nonlocal win, lose
+        nonlocal result
         if event.key == "left":
-            win = image1
-            lose = image2
+            result = ComparisonResult.LEFT_WIN
             plt.close()
         elif event.key == "right":
-            win = image2
-            lose = image1
+            result = ComparisonResult.RIGHT_WIN
+            plt.close()
+        elif event.key == "down":
+            result = ComparisonResult.DRAW
             plt.close()
 
-    while win is None or lose is None:
-        fig = plt.figure()
+    while result is None:
+        fig = plt.figure(figsize=(15, 10))
         fig.canvas.mpl_connect('key_press_event', on_press)
 
         plt.subplot(1, 2, 1)
         plt.imshow(plt.imread(image1))
+        plt.axis('off')
+
         plt.subplot(1, 2, 2)
         plt.imshow(plt.imread(image2))
+        plt.axis('off')
         plt.show()
 
-    return win, lose
+    return result
 
 
-def update_rating(ratings: dict, winner: str, loser: str):
+def update_rating(ratings: dict, left: str, right: str, result: ComparisonResult):
     default_rating = 1500
     k = 32
+
+    # coefficient for draw
+    dc1 = 1.0
+    dc2 = 0.0
+
+    if result == ComparisonResult.DRAW:
+        dc1 = 0.5
+        dc2 = 0.5
+    
+    winner = left if result == ComparisonResult.LEFT_WIN else right
+    loser = right if result == ComparisonResult.LEFT_WIN else left
 
     if winner not in ratings:
         ratings[winner] = default_rating
@@ -53,9 +73,12 @@ def update_rating(ratings: dict, winner: str, loser: str):
     r2 = ratings[loser]
 
     w_21 = 1 / (1 + 10 ** ((r1 - r2) / 400))
+    w_12 = 1 / (1 + 10 ** ((r2 - r1) / 400))
 
-    ratings[winner] = r1 + k * w_21
-    ratings[loser] = r2 - k * w_21
+    # ratings[winner] = r1 + k * w_21
+    # ratings[loser] = r2 - k * w_21
+    ratings[winner] = r1 + dc1 * k * w_21 - dc2 * k * w_12
+    ratings[loser] = r2 - dc1 * k * w_21 + dc2 * k * w_12
 
 
 def calculate_elo_rating(compare_result: dict, files: List[str]):
@@ -65,10 +88,7 @@ def calculate_elo_rating(compare_result: dict, files: List[str]):
         rating[f] = 1500
 
     for (f1, f2), result in compare_result.items():
-        if result:
-            update_rating(rating, f1, f2)
-        else:
-            update_rating(rating, f2, f1)
+        update_rating(rating, f1, f2, result)
 
     return rating
 
@@ -77,12 +97,12 @@ def calculate_trueskill_rating(compare_result: dict, files: List[str]):
     ratings = {f: trueskill.Rating() for f in files}
 
     for (f1, f2), result in compare_result.items():
-        if result:
-            ratings[f1], ratings[f2] = trueskill.rate_1vs1(
-                ratings[f1], ratings[f2])
-        else:
-            ratings[f2], ratings[f1] = trueskill.rate_1vs1(
-                ratings[f2], ratings[f1])
+        winner = f1 if result == ComparisonResult.LEFT_WIN else f2
+        loser = f2 if result == ComparisonResult.LEFT_WIN else f1
+        drawn = result == ComparisonResult.DRAW
+
+        ratings[winner], ratings[loser] = trueskill.rate_1vs1(
+            ratings[winner], ratings[loser], drawn=drawn)
 
     # NOTE: ignore uncertainty
     return {f: ratings[f].mu for f in files}
@@ -106,6 +126,7 @@ def select_file(files: List[str], n_comparisons: dict, compare_results: dict):
     random.shuffle(files)
     candidate = sorted(files, key=lambda x: n_comparisons[x])
 
+    # low n_comparisons comes first
     for i in range(len(candidate)):
         for j in range(i + 1, len(candidate)):
             file1 = min(candidate[i], candidate[j])
@@ -157,9 +178,9 @@ def annotate(
         n_comparisons[file1] += 1
         n_comparisons[file2] += 1
 
-        print("compare", file1, file2)
-        win, _lose = compare(file1, file2)
-        compare_results[(file1, file2)] = win == file1
+        print(f"{i} th compare", file1, file2)
+        result = compare(file1, file2)
+        compare_results[(file1, file2)] = result
 
         # save compare results
         compare_results_raw = {"data": [[f1, f2, result]
@@ -182,7 +203,6 @@ def annotate(
 
 
 def main():
-    # TODO: add TrueSkill rating mode
     fire.Fire(annotate)
 
 
