@@ -17,26 +17,31 @@ def load_clip_model():
     return device, model, preprocess
 
 
-def encode_image(models, image_path):
+def preprocess_images(models, image_paths: List[str]):
     device, model, preprocess = models
 
-    image = preprocess(Image.open(image_path)).unsqueeze(0).to(device)
-    with torch.no_grad():
-        image_features = model.encode_image(image)
+    for i, file in enumerate(image_paths):
+        image = preprocess(Image.open(file)).unsqueeze(0).to(device)
+        with torch.no_grad():
+            x = model.encode_image(image)
 
-    return model.encode_image(image)
+        if 'x_train' not in locals():
+            x_train = np.zeros((len(image_paths), x.shape[1]))
 
+        x_train[i] = x.cpu().numpy()
 
-def preprocess_images(models, image_paths: List[str]):
-    # TODO: impleent
-    image_features = None
-    return image_features
+    return x_train
 
 
 def preprocess_dataset(models, image_paths: List[str], rating_json_path: str):
-    # TODO: implement
+    x_train = preprocess_images(models, image_paths)
+
     rating = json.load(open(rating_json_path, 'r'))["data"]
-    return None, None
+    y_train = np.zeros(len(image_paths))
+    for i, file in enumerate(image_paths):
+        y_train[i] = rating[file]
+
+    return x_train, y_train
 
 
 def train_core(x_train, y_train, x_test, y_test):
