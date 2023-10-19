@@ -4,6 +4,7 @@ import fire
 import glob
 import json
 import random
+import trueskill
 from typing import List
 from copy import deepcopy
 
@@ -57,7 +58,7 @@ def update_rating(ratings: dict, winner: str, loser: str):
     ratings[loser] = r2 - k * w_21
 
 
-def calculate_rating(compare_result: dict, files: List[str]):
+def calculate_elo_rating(compare_result: dict, files: List[str]):
     rating = {}
 
     for f in files:
@@ -70,6 +71,21 @@ def calculate_rating(compare_result: dict, files: List[str]):
             update_rating(rating, f2, f1)
 
     return rating
+
+
+def calculate_trueskill_rating(compare_result: dict, files: List[str]):
+    ratings = {f: trueskill.Rating() for f in files}
+
+    for (f1, f2), result in compare_result.items():
+        if result:
+            ratings[f1], ratings[f2] = trueskill.rate_1vs1(
+                ratings[f1], ratings[f2])
+        else:
+            ratings[f2], ratings[f1] = trueskill.rate_1vs1(
+                ratings[f2], ratings[f1])
+
+    # NOTE: ignore uncertainty
+    return {f: ratings[f].mu for f in files}
 
 
 def calculate_n_comparisons(compare_result: dict, files: List[str]):
@@ -105,7 +121,8 @@ def annotate(
         comparison_result_path: Path,
         rating_json_path: Path,
         n_rounds: int = 100,
-        show_result: bool = False):
+        show_result: bool = False,
+        rating_type: str = 'trueskill'):
     """
     annotate rating with Elo rating method.
 
@@ -116,6 +133,7 @@ def annotate(
         rating_json_path: Json file path to save rating.
         n_rounds: Number of rounds to annotate. 
         show_result: If True, show the result of annotation.
+        rating_type: Rating type. 'elo' or 'trueskill'.
     """
 
     image_directory = Path(image_directory)
@@ -148,9 +166,12 @@ def annotate(
                                for (f1, f2), result in compare_results.items()]}
         json.dump(compare_results_raw, open(comparison_result_path, 'w'))
 
-    # calculate and save Elo rating
-    # NOTE: rating[file] is elo rating
-    rating = calculate_rating(compare_results, files)
+    # calculate and save rating
+    # NOTE: rating[file] is rating
+    if rating_type == 'elo':
+        rating = calculate_elo_rating(compare_results, files)
+    else:
+        rating = calculate_trueskill_rating(compare_results, files)
     json.dump(rating, open(rating_json_path, 'w'))
 
     if show_result:
