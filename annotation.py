@@ -8,6 +8,8 @@ import trueskill
 from typing import List
 from copy import deepcopy
 import enum
+from typing import Tuple
+
 
 class ComparisonResult:
     LEFT_WIN = 0
@@ -15,7 +17,7 @@ class ComparisonResult:
     DRAW = 2
 
 
-def compare(image1: str, image2: str):
+def compare(image1: str, image2: str, figsize: Tuple[int, int]):
     """
     Compare two images with GUI, and return the winner and loser. 
     """
@@ -34,15 +36,22 @@ def compare(image1: str, image2: str):
             plt.close()
 
     while result is None:
-        fig = plt.figure(figsize=(15, 10))
+        fig = plt.figure(figsize=figsize)
         fig.canvas.mpl_connect('key_press_event', on_press)
 
+        plt.subplots_adjust(left=0.05, right=0.995, bottom=0.05, top=0.995)
         plt.subplot(1, 2, 1)
-        plt.imshow(plt.imread(image1))
+        im1 = plt.imread(image1)
+        plt.imshow(im1)
+        if len(im1.shape) == 2:
+            plt.gray()
         plt.axis('off')
 
         plt.subplot(1, 2, 2)
-        plt.imshow(plt.imread(image2))
+        im2 = plt.imread(image2)
+        plt.imshow(im2)
+        if len(im2.shape) == 2:
+            plt.gray()
         plt.axis('off')
         plt.show()
 
@@ -60,7 +69,7 @@ def update_rating(ratings: dict, left: str, right: str, result: ComparisonResult
     if result == ComparisonResult.DRAW:
         dc1 = 0.5
         dc2 = 0.5
-    
+
     winner = left if result == ComparisonResult.LEFT_WIN else right
     loser = right if result == ComparisonResult.LEFT_WIN else left
 
@@ -143,7 +152,8 @@ def annotate(
         rating_json_path: Path,
         n_rounds: int = 100,
         show_result: bool = False,
-        rating_type: str = 'trueskill'):
+        rating_type: str = 'trueskill',
+        figsize=(10, 7)):
     """
     annotate rating with Elo rating method.
 
@@ -173,13 +183,13 @@ def annotate(
     n_comparisons = calculate_n_comparisons(compare_results, files)
 
     # evaluate
-    for _ in range(n_rounds):
+    for i in range(n_rounds):
         file1, file2 = select_file(files, n_comparisons, compare_results)
         n_comparisons[file1] += 1
         n_comparisons[file2] += 1
 
         print(f"{i} th compare", file1, file2)
-        result = compare(file1, file2)
+        result = compare(file1, file2, figsize)
         compare_results[(file1, file2)] = result
 
         # save compare results
