@@ -2,21 +2,13 @@ import glob
 import torch
 from torch.utils.data import random_split, TensorDataset, DataLoader
 from torchvision.ops import MLP
-import clip
 import json
 from PIL import Image
 from typing import List
 from pathlib import Path
 import numpy as np
 import pickle
-from util import get_all_image_paths
-
-
-def load_clip_model():
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model, preprocess = clip.load("ViT-B/32", device=device)
-
-    return device, model, preprocess
+from util import get_all_image_paths, load_clip_model
 
 
 def preprocess_images(models, image_paths: List[str]):
