@@ -26,12 +26,12 @@ def load_clip_model():
 def calculate_similarity(image_features, text_features):
     image_features /= image_features.norm(dim=-1, keepdim=True)
     text_features /= text_features.norm(dim=-1, keepdim=True)
-    similarity = (100.0 * image_features @ text_features.T).softmax(dim=-1)
+    similarity = (image_features @ text_features.T).softmax(dim=-1)
 
     return similarity
 
 
-def encode_images(models, image_paths: List[str]):
+def encode_images(models, image_paths: List[str]) -> np.ndarray:
     device, model, preprocess = models
 
     for i, file in enumerate(image_paths):
@@ -45,3 +45,42 @@ def encode_images(models, image_paths: List[str]):
         x_train[i] = x.cpu().numpy()
 
     return x_train
+
+
+def encode_texts(models, texts: List[str]):
+    device, model, preprocess = models
+
+    text_inputs = torch.cat(
+        [clip.tokenize(t) for t in texts]).to(device)
+
+    with torch.no_grad():
+        text_features = model.encode_text(text_inputs)
+
+    return text_features
+
+
+def calculate_text_similarities(models, texts: List[str], image_paths: List[str]):
+    device, model, preprocess = models
+
+    image_features = torch.tensor(
+        encode_images(models, image_paths), dtype=torch.float16).to(device)
+    text_features = encode_texts(models, texts)
+    similarities = calculate_similarity(image_features, text_features)
+
+    for i, image_paths in enumerate(image_paths):
+        best_label = texts[similarities[i].argmax()]
+        print(f"{image_paths}: {best_label}")
+
+    return similarities
+
+
+# EXAMPLE_LABELS = [
+#     "woman",
+#     "landscape",
+#     "man",
+#     "animal",
+#     "structure",
+#     "document",
+#     "abstract painting",
+#     "the universe"
+# ]
