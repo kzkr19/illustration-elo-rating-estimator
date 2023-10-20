@@ -67,9 +67,9 @@ def calculate_text_similarities(models, texts: List[str], image_paths: List[str]
     text_features = encode_texts(models, texts)
     similarities = calculate_similarity(image_features, text_features)
 
-    for i, image_paths in enumerate(image_paths):
-        best_label = texts[similarities[i].argmax()]
-        print(f"{image_paths}: {best_label}")
+    # for i, image_paths in enumerate(image_paths):
+    #     best_label = texts[similarities[i].argmax()]
+    #     print(f"{image_paths}: {best_label}")
 
     return similarities
 
