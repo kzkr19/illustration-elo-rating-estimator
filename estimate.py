@@ -11,7 +11,7 @@ import pickle
 from util import get_all_image_paths, load_clip_model
 
 
-def preprocess_images(models, image_paths: List[str]):
+def encode_images(models, image_paths: List[str]):
     device, model, preprocess = models
 
     for i, file in enumerate(image_paths):
@@ -27,8 +27,8 @@ def preprocess_images(models, image_paths: List[str]):
     return x_train
 
 
-def preprocess_dataset(models, image_paths: List[str], rating_json_path: str):
-    x_train = preprocess_images(models, image_paths)
+def encode_dataset(models, image_paths: List[str], rating_json_path: str):
+    x_train = encode_images(models, image_paths)
 
     rating = json.load(open(rating_json_path, 'r'))
     y_train = np.zeros(len(image_paths))
@@ -91,7 +91,7 @@ def train(
         print("loading clip model...")
         models = load_clip_model()
         print("start preprocessing...")
-        x_train, y_train = preprocess_dataset(
+        x_train, y_train = encode_dataset(
             models, image_paths, rating_json_path)
         print("finish preprocessing...")
         with open(preprcessed_dataset_path, 'wb') as f:
