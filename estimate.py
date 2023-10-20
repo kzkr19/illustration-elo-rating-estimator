@@ -8,23 +8,7 @@ from typing import List
 from pathlib import Path
 import numpy as np
 import pickle
-from util import get_all_image_paths, load_clip_model
-
-
-def encode_images(models, image_paths: List[str]):
-    device, model, preprocess = models
-
-    for i, file in enumerate(image_paths):
-        image = preprocess(Image.open(file)).unsqueeze(0).to(device)
-        with torch.no_grad():
-            x = model.encode_image(image)
-
-        if 'x_train' not in locals():
-            x_train = np.zeros((len(image_paths), x.shape[1]))
-
-        x_train[i] = x.cpu().numpy()
-
-    return x_train
+from util import get_all_image_paths, load_clip_model, encode_images
 
 
 def encode_dataset(models, image_paths: List[str], rating_json_path: str):
