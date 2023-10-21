@@ -11,7 +11,7 @@ def get_all_image_paths(dir):
     result = []
 
     for ext in extensions:
-        result += glob.glob(dir + f"/*.{ext}")
+        result += glob.glob(str(dir) + f"/*.{ext}")
 
     return result
 
@@ -26,6 +26,9 @@ def load_clip_model():
 def calculate_similarity(image_features, text_features):
     image_features /= image_features.norm(dim=-1, keepdim=True)
     text_features /= text_features.norm(dim=-1, keepdim=True)
+
+    image_features = image_features.float()
+    text_features = text_features.float()
     similarity = (image_features @ text_features.T).softmax(dim=-1)
 
     return similarity
