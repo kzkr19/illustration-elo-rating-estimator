@@ -29,7 +29,7 @@ def calculate_similarity(image_features, text_features):
 
     image_features = image_features.float()
     text_features = text_features.float()
-    similarity = (image_features @ text_features.T).softmax(dim=-1)
+    similarity = (100 * image_features @ text_features.T).softmax(dim=-1)
 
     return similarity
 
