@@ -33,8 +33,8 @@ def train_core(x_train, y_train):
     loss_fn = torch.nn.MSELoss()
 
     # split train and test
-    dataset = TensorDataset(torch.tensor(x_train, dtype=torch.float32),
-                            torch.tensor(y_train, dtype=torch.float32))
+    dataset = TensorDataset(torch.tensor(x_train, dtype=torch.float32).to(device),
+                            torch.tensor(y_train, dtype=torch.float32).to(device))
     train_size = int(len(dataset) * 0.8)
     test_size = len(dataset) - train_size
     train_dataset, test_dataset = random_split(
@@ -60,12 +60,13 @@ def train_core(x_train, y_train):
 
 def train(
         image_directory: str,
-        rating_json_path: str,
-        preprcessed_dataset_path: str,
-        trained_model_path: str):
+        output_directory: str):
+    rating_json_path = output_directory + "/rating.json"
+    preprocessed_dataset_path = output_directory + "/preprocessed.pkl"
+    trained_model_path = output_directory + "/model.pt"
 
-    if Path(preprcessed_dataset_path).exists():
-        with open(preprcessed_dataset_path, 'rb') as f:
+    if Path(preprocessed_dataset_path).exists():
+        with open(preprocessed_dataset_path, 'rb') as f:
             x_train, y_train = pickle.load(f)
     else:
         # preprocess
@@ -78,7 +79,7 @@ def train(
         x_train, y_train = encode_dataset(
             models, image_paths, rating_json_path)
         print("finish preprocessing...")
-        with open(preprcessed_dataset_path, 'wb') as f:
+        with open(preprocessed_dataset_path, 'wb') as f:
             pickle.dump((x_train, y_train), f)
 
     # training
@@ -107,7 +108,7 @@ def estimate(model_path: str, image_directory: str):
 
         # estimate
         with torch.no_grad():
-            x = clip_model.encode_image(image)
+            x = clip_model.encode_image(image).float()
             y = trained_model(x)
 
         result[image_path] = y.cpu().numpy()[0][0]

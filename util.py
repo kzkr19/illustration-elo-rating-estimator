@@ -11,7 +11,7 @@ def get_all_image_paths(dir):
     result = []
 
     for ext in extensions:
-        result += glob.glob(dir + f"/*.{ext}")
+        result += glob.glob(str(dir) + f"/*.{ext}")
 
     return result
 
