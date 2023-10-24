@@ -149,8 +149,7 @@ def select_file(files: List[str], n_comparisons: dict, compare_results: dict):
 
 def annotate(
         image_directory: Path,
-        comparison_result_path: Path,
-        rating_json_path: Path,
+        output_directory: Path,
         n_rounds: int = 100,
         show_result: bool = False,
         rating_type: str = 'trueskill',
@@ -160,13 +159,14 @@ def annotate(
 
     Args:
         image_directory: Path to directory containing images.
-        comparison_result_path: Json file path to save comparison results. If the file exists,
-            the results will be appended.
-        rating_json_path: Json file path to save rating.
+        output_directory: Path to directory to save metadata.
         n_rounds: Number of rounds to annotate. 
         show_result: If True, show the result of annotation.
         rating_type: Rating type. 'elo' or 'trueskill'.
     """
+
+    comparison_result_path = str(output_directory) + "/result.json"
+    rating_json_path = str(output_directory) + "/rating.json"
 
     image_directory = Path(image_directory)
     comparison_result_path = Path(comparison_result_path)
