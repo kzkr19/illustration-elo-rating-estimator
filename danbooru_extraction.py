@@ -33,13 +33,13 @@ def extract_id_from_path(image_path):
     return int(os.path.basename(image_path).split(".")[0])
 
 
-def extract_high_scores(all_data, all_images, n_extract, sort_type):
+def extract_high_scores(all_data, all_images, n_extract, sort_type, filter_func):
     sort_rule = {
         "score": lambda x: x[1]["score"],
         "fav": lambda x: len(x[1]["favs"]),
     }
     score_list = [s for s in all_data.items()
-                  if s[0] in all_images.keys()]
+                  if s[0] in all_images.keys() and filter_func(s[1])]
     score_list.sort(key=sort_rule[sort_type], reverse=True)
 
     extracted_image = score_list[:n_extract]
@@ -66,8 +66,17 @@ def main(json_dir_or_path, image_dir, output_dir, n_extract=1000):
     random.shuffle(image_ids)
 
     # extract list of image id which we need
+    # TODO: add option to change filter_func
+    def filter_func(x):
+        tags = [t["name"] for t in x["tags"]]
+        if not "1girl" in tags:
+            return False
+        if "1boy" in tags:
+            return False
+        return True
+
     extracted_image_id = extract_high_scores(
-        all_data, all_images, n_extract, "fav")
+        all_data, all_images, n_extract, "fav", filter_func)
 
     print(extracted_image_id)
     # copy and save images and their extracted metadata
